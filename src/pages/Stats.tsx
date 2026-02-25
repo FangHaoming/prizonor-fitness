@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
 import { getProgress, getCheckins } from '@/storage/storage';
@@ -15,16 +16,151 @@ const stageLabel: Record<string, string> = {
   master: '最终技',
 };
 
+// 对齐到本周周一，生成按周列的日期矩阵（类似 GitHub 贡献图）
+function buildWeeks(end: Date, weeks: number): Date[][] {
+  const endCopy = new Date(end);
+  const day = endCopy.getDay(); // 0=Sun ... 6=Sat
+  const offsetToMonday = (day + 6) % 7;
+  endCopy.setDate(endCopy.getDate() - offsetToMonday);
+
+  const start = new Date(endCopy);
+  start.setDate(endCopy.getDate() - (weeks - 1) * 7);
+
+  const result: Date[][] = [];
+  for (let w = 0; w < weeks; w++) {
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + w * 7);
+    const week: Date[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + d);
+      week.push(date);
+    }
+    result.push(week);
+  }
+  return result;
+}
+
+function dateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export default function Stats() {
   const progress = getProgress();
   const checkins = getCheckins();
   const streak = getStreakDays(checkins);
+  const [hoverInfo, setHoverInfo] = useState<string | null>(null);
+
+  // 按日期汇总训练量与动作明细
+  const byDateVolume: Record<string, number> = {};
+  const byDateDetails: Record<string, string[]> = {};
+  for (const c of checkins) {
+    const key = c.date;
+    if (!byDateDetails[key]) byDateDetails[key] = [];
+    let dayVolume = 0;
+    for (const e of c.entries) {
+      const art = SIX_ARTS.find((a) => a.id === e.artId);
+      const step = art?.steps.find((s) => s.level === e.level);
+      const artName = art?.name ?? e.artId;
+      const stepName = step?.name ?? `第${e.level}式`;
+      const volume = (e.sets || 0) * (e.reps || 0);
+      dayVolume += volume;
+      const desc =
+        e.reps && e.reps > 0
+          ? `${artName}·${stepName} ${e.sets}×${e.reps}`
+          : `${artName}·${stepName} ${e.sets}组`;
+      byDateDetails[key].push(desc);
+    }
+    byDateVolume[key] = (byDateVolume[key] || 0) + dayVolume;
+  }
+
+  const today = new Date();
+  const weeks = buildWeeks(today, 52);
+  const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
+
+  // 根据实际训练量动态计算颜色阈值，让差异更明显
+  const volumes = Object.values(byDateVolume).filter((v) => v > 0);
+  const maxVolume = volumes.length ? Math.max(...volumes) : 0;
+  const step = maxVolume > 0 ? Math.max(1, Math.ceil(maxVolume / 4)) : 0;
 
   return (
     <div className="page-stats">
       <div className="card">
         <h2>连续打卡</h2>
         <p className="big">{streak} 天</p>
+      </div>
+
+      <div className="card">
+        <h2>打卡日历（近一年）</h2>
+        <div className="heatmap-wrapper">
+          <div className="heatmap-months">
+            <span className="heatmap-month-spacer" />
+            <div className="heatmap-month-row">
+              {weeks.map((week, wi) => {
+                const firstDay = week[0];
+                const prev = weeks[wi - 1]?.[0];
+                const showLabel =
+                  wi === 0 || firstDay.getMonth() !== prev.getMonth();
+                return (
+                  <span key={wi} className="heatmap-month-label">
+                    {showLabel ? monthFormatter.format(firstDay) : ''}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="heatmap">
+            <div className="heatmap-weekdays">
+              <span>Mon</span>
+              <span>Wed</span>
+              <span>Fri</span>
+            </div>
+            <div className="heatmap-grid">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="heatmap-week">
+                  {week.map((day, di) => {
+                    const key = dateKey(day);
+                    const isFuture = day > today;
+                    const volume = !isFuture ? byDateVolume[key] || 0 : 0;
+                    const details = !isFuture ? byDateDetails[key] || [] : [];
+                    let level = 0;
+                    if (step > 0 && volume > 0) {
+                      if (volume <= step) level = 1;
+                      else if (volume <= step * 2) level = 2;
+                      else if (volume <= step * 3) level = 3;
+                      else level = 4;
+                    }
+                    const detailText = details.join('，');
+                    const classes =
+                      'heatmap-day' +
+                      (isFuture ? ' future' : '') +
+                      (level ? ` level-${level}` : '');
+                    const infoText =
+                      !isFuture && volume
+                        ? `${key} · 训练量 ${volume}${
+                            detailText ? `（${detailText}）` : ''
+                          }`
+                        : !isFuture
+                        ? `${key} · 无打卡`
+                        : '';
+                    return (
+                      <div
+                        key={di}
+                        className={classes}
+                        title={infoText}
+                        onMouseEnter={() => infoText && setHoverInfo(infoText)}
+                        onMouseLeave={() => setHoverInfo(null)}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="heatmap-caption">
+            {hoverInfo || '移动到格子上查看当日训练量'}
+          </div>
+        </div>
       </div>
 
       <div className="card">

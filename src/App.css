@@ -156,6 +156,100 @@
 .art-stats h3 { margin: 0.5rem 0 0.25rem; font-size: 0.95rem; }
 .art-stats p { margin: 0.15rem 0; font-size: 0.9rem; color: var(--text-muted); }
 
+.heatmap-wrapper {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.heatmap-months {
+  display: flex;
+  align-items: flex-end;
+  margin-left: 18px; /* 为星期标签预留空间 */
+  margin-bottom: 4px;
+}
+
+.heatmap-month-spacer {
+  width: 18px;
+  flex: 0 0 auto;
+}
+
+.heatmap-month-row {
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.heatmap-month-label {
+  display: block;
+  width: 12px;
+  text-align: left;
+}
+
+.heatmap {
+  display: flex;
+  max-width: 100%;
+  overflow-x: hidden; /* 不出现滚动条 */
+}
+
+.heatmap-weekdays {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-right: 4px;
+  padding-top: 10px;
+}
+
+.heatmap-weekdays span {
+  height: 16px;
+  line-height: 16px;
+}
+
+.heatmap-grid {
+  display: flex;
+  gap: 2px;
+}
+
+.heatmap-week {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heatmap-day {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.heatmap-day.level-1 {
+  background: #0e4429;
+}
+
+.heatmap-day.level-2 {
+  background: #006d32;
+}
+
+.heatmap-day.level-3 {
+  background: #26a641;
+}
+
+.heatmap-day.level-4 {
+  background: #39d353;
+}
+
+.heatmap-day.future {
+  opacity: 0.15;
+}
+
+.heatmap-caption {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .share-card { max-width: 360px; margin: 0 auto 1rem; }
 .share-card .tagline { margin-top: 1rem; color: var(--text-muted); font-style: italic; }
 .share-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
