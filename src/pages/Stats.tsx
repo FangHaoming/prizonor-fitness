@@ -16,12 +16,12 @@ const stageLabel: Record<string, string> = {
   master: '最终技',
 };
 
-// 对齐到本周周一，生成按周列的日期矩阵（类似 GitHub 贡献图）
+// 对齐到本周周日，生成按周列的日期矩阵（与 GitHub 贡献图一致）
 function buildWeeks(end: Date, weeks: number): Date[][] {
   const endCopy = new Date(end);
   const day = endCopy.getDay(); // 0=Sun ... 6=Sat
-  const offsetToMonday = (day + 6) % 7;
-  endCopy.setDate(endCopy.getDate() - offsetToMonday);
+  const offsetToSunday = day; // 以周日作为一列的起始
+  endCopy.setDate(endCopy.getDate() - offsetToSunday);
 
   const start = new Date(endCopy);
   start.setDate(endCopy.getDate() - (weeks - 1) * 7);
@@ -75,7 +75,7 @@ export default function Stats() {
   }
 
   const today = new Date();
-  const weeks = buildWeeks(today, 52);
+  const weeks = buildWeeks(today, 53);
   const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
 
   // 根据实际训练量动态计算颜色阈值，让差异更明显
@@ -99,11 +99,15 @@ export default function Stats() {
               {weeks.map((week, wi) => {
                 const firstDay = week[0];
                 const prev = weeks[wi - 1]?.[0];
+                // 第 0 列只有在刚好是某月 1 号时才显示月份，
+                // 否则从第二列起按月份变更显示，避免「FeMar」叠在一起
                 const showLabel =
-                  wi === 0 || firstDay.getMonth() !== prev.getMonth();
+                  (wi === 0 && firstDay.getDate() === 1) ||
+                  (wi > 0 && prev && firstDay.getMonth() !== prev.getMonth());
+                if (!showLabel) return null;
                 return (
                   <span key={wi} className="heatmap-month-label">
-                    {showLabel ? monthFormatter.format(firstDay) : ''}
+                    {monthFormatter.format(firstDay)}
                   </span>
                 );
               })}

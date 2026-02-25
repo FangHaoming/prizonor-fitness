@@ -229,53 +229,68 @@
 .art-stats p { margin: 0.15rem 0; font-size: 0.9rem; color: var(--text-muted); }
 
 .heatmap-wrapper {
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
   font-size: 0.7rem;
   color: var(--text-muted);
   user-select: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .heatmap-months {
   display: flex;
   align-items: flex-end;
-  margin-left: 18px; /* 为星期标签预留空间 */
+  margin-left: 0;
   margin-bottom: 4px;
 }
 
 .heatmap-month-spacer {
-  width: 18px;
+  width: 32px; /* 左侧星期列（18px）+ 与格子的间距（14px） */
   flex: 0 0 auto;
 }
 
 .heatmap-month-row {
   display: flex;
-  gap: 2px;
-  overflow: hidden;
+  /* 相邻月份标签之间的水平间隔约等于 3 个日期格子（3*12px + 2*2px gap = 40px） */
+  gap: 42px;
 }
 
 .heatmap-month-label {
   display: block;
-  width: 12px;
+  width: auto;
   text-align: left;
 }
 
 .heatmap {
   display: flex;
-  max-width: 100%;
-  overflow-x: hidden; /* 不出现滚动条 */
 }
 
 .heatmap-weekdays {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  margin-right: 4px;
-  padding-top: 10px;
+  display: grid;
+  grid-template-rows: repeat(7, 14px); /* 7 行：与日期格子行数一致（12px + 2px 间距） */
+  width: 18px;
+  flex: 0 0 18px;
+  margin-right: 14px; /* 和格子拉开一点距离 */
 }
 
 .heatmap-weekdays span {
-  height: 16px;
-  line-height: 16px;
+  height: 14px;
+  line-height: 14px;
+  align-self: center;
+  justify-self: flex-end; /* 文本靠近格子一侧 */
+}
+
+/* Mon / Wed / Fri 分别落在对应的日期行（第 2、4、6 行） */
+.heatmap-weekdays span:nth-child(1) {
+  grid-row: 2;
+}
+.heatmap-weekdays span:nth-child(2) {
+  grid-row: 4;
+}
+.heatmap-weekdays span:nth-child(3) {
+  grid-row: 6;
 }
 
 .heatmap-grid {
@@ -368,4 +383,21 @@
 .toast-error {
   background: linear-gradient(135deg, #b91c1c, #ef4444);
   color: #fee2e2;
+}
+
+/* 移动端：让月份标签和格子按实际内容宽度展开，一起横向滚动 */
+@media (max-width: 600px) {
+  .heatmap-month-row,
+  .heatmap-grid {
+    width: max-content;
+  }
+
+  /* 保证移动端月份之间也按 3 个格子左右的间距排布 */
+  .heatmap-month-row {
+    gap: 42px;
+  }
+
+  .heatmap-month-label {
+    width: auto;
+  }
 }
