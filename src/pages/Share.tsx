@@ -3,18 +3,23 @@ import { getProgress } from '@/storage/storage';
 import { getCompletedLevel, masterCount } from '@/logic/progressLogic';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
+import { useToast } from '@/components/Toast';
 
 export default function Share() {
   const cardRef = useRef<HTMLDivElement>(null);
   const progress = getProgress();
   const masters = masterCount(progress);
+  const { showToast } = useToast();
 
   const handleSave = () => {
     if (!cardRef.current) return;
     // 简单方案：提示用户截图；后续可接 html2canvas 导出 PNG
     const range = document.createRange();
     range.selectNodeContents(cardRef.current);
-    alert('请使用系统截图或浏览器开发者工具对下方卡片区域截图保存。后续版本将支持一键导出图片。');
+    showToast(
+      '请使用系统截图或浏览器截屏工具保存下方卡片区域。后续版本将支持一键导出图片。',
+      'info'
+    );
   };
 
   const handleShare = async () => {
@@ -25,7 +30,9 @@ export default function Share() {
           text: `六艺进度 · 最终技 ${masters}/6 已完成`,
         });
       } catch (e) {
-        if ((e as Error).name !== 'AbortError') alert('分享失败');
+        if ((e as Error).name !== 'AbortError') {
+          showToast('分享失败，请稍后重试', 'error');
+        }
       }
     } else {
       handleSave();

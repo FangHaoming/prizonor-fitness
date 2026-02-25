@@ -5,12 +5,14 @@ import type { ArtId } from '@/data/sixArts';
 import type { CheckinEntry } from '@/types/progress';
 import { getProgress } from '@/storage/storage';
 import { submitCheckinAndUpdateProgress } from '@/logic/progressLogic';
+import { useToast } from '@/components/Toast';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function Checkin() {
   const [searchParams] = useSearchParams();
   const presetArt = (searchParams.get('art') as ArtId) || null;
+  const { showToast } = useToast();
 
   const [date, setDate] = useState(today());
   const [entries, setEntries] = useState<CheckinEntry[]>(() => {
@@ -40,7 +42,7 @@ export default function Checkin() {
     submitCheckinAndUpdateProgress({ date, entries });
     setEntries([]);
     setDate(today());
-    alert('打卡已保存');
+    showToast('打卡已保存', 'success');
   };
 
   return (

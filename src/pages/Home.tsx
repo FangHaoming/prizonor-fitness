@@ -1,23 +1,39 @@
 import { Link } from 'react-router-dom';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
-import { getProgress } from '@/storage/storage';
-import { getCompletedLevel, masterCount } from '@/logic/progressLogic';
+import { getProgress, getCheckins } from '@/storage/storage';
+import { getCompletedLevel } from '@/logic/progressLogic';
 
 export default function Home() {
   const progress = getProgress();
-  const masters = masterCount(progress);
+  const checkins = getCheckins();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCheckin = checkins.find((c) => c.date === today);
+  const times = todayCheckin?.entries.length ?? 0;
+  const hasCheckin = times > 0;
+  let level = 0;
+  if (times === 1) level = 1;
+  else if (times === 2) level = 2;
+  else if (times === 3) level = 3;
+  else if (times >= 4) level = 4;
 
   return (
     <div className="page-home">
-      <section className="card summary">
-        <h2>当前进度</h2>
-        <p className="masters">
-          最终技完成 <strong>{masters}</strong> / 6
-        </p>
-        <Link to="/checkin" className="cta">
-          今日打卡
-        </Link>
+      <section className="card today-summary">
+        <div className="today-header">
+          <h2>今日打卡</h2>
+          <span className={`today-status ${hasCheckin ? `level-${level}` : 'level-0'}`}>
+            {hasCheckin ? `已打卡 ${times} 次` : '尚未打卡'}
+          </span>
+        </div>
+        <div className="today-action">
+          <Link
+            to="/checkin"
+            className={`today-circle-btn ${hasCheckin ? 'today-circle-btn-checked' : ''}`}
+          >
+            去打卡
+          </Link>
+        </div>
       </section>
 
       <section className="art-cards">

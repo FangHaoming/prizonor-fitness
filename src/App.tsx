@@ -4,6 +4,7 @@ import ArtDetail from '@/pages/ArtDetail';
 import Checkin from '@/pages/Checkin';
 import Stats from '@/pages/Stats';
 import Share from '@/pages/Share';
+import { ToastProvider } from '@/components/Toast';
 
 function Nav() {
   const link = (to: string, label: string) => (
@@ -28,20 +29,22 @@ function Nav() {
 
 export default function App() {
   return (
-    <div className="app">
-      <header className="header">
-        <h1 className="logo">囚徒健身 · 进度</h1>
-      </header>
-      <main className="main">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/art/:artId" element={<ArtDetail />} />
-          <Route path="/checkin" element={<Checkin />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/share" element={<Share />} />
-        </Routes>
-      </main>
-      <Nav />
-    </div>
+    <ToastProvider>
+      <div className="app">
+        <header className="header">
+          <h1 className="logo">囚徒健身 · 进度</h1>
+        </header>
+        <main className="main">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/art/:artId" element={<ArtDetail />} />
+            <Route path="/checkin" element={<Checkin />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/share" element={<Share />} />
+          </Routes>
+        </main>
+        <Nav />
+      </div>
+    </ToastProvider>
   );
 }
