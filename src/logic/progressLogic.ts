@@ -75,19 +75,30 @@ export function getStageDurationDays(
   return Math.round((b - a) / (24 * 60 * 60 * 1000));
 }
 
-/** 连续打卡天数 */
+/** 连续打卡天数（截止昨天的连续天数，若今天也打卡则再 +1） */
 export function getStreakDays(checkins: Checkin[]): number {
   if (checkins.length === 0) return 0;
-  const dates = [...new Set(checkins.map((c) => c.date))].sort((a, b) => b.localeCompare(a));
-  const today = new Date().toISOString().slice(0, 10);
-  let streak = 0;
-  let expect = today;
-  for (const d of dates) {
-    if (d !== expect) break;
-    streak++;
-    const next = new Date(expect);
-    next.setDate(next.getDate() - 1);
-    expect = next.toISOString().slice(0, 10);
+
+  const dateSet = new Set(checkins.map((c) => c.date));
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  // 先统计「截止昨天」的连续天数
+  let baseStreak = 0;
+  let cur = yesterdayStr;
+  while (dateSet.has(cur)) {
+    baseStreak++;
+    const prev = new Date(cur);
+    prev.setDate(prev.getDate() - 1);
+    cur = prev.toISOString().slice(0, 10);
   }
-  return streak;
+
+  // 如果今天也打卡了，则在「截止昨天的连续天数」基础上再 +1
+  const hasToday = dateSet.has(todayStr);
+  return baseStreak + (hasToday ? 1 : 0);
 }
