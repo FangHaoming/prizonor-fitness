@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
-import { getProgress, getCheckins } from '@/storage/storage';
+import type { Progress, Checkin } from '@/types/progress';
+import { getProgress, getCheckins, exportAllData, importAllData } from '@/storage/storage';
+import { useToast } from '@/components/Toast';
 import {
   getCompletedLevel,
   isMasterCompleted,
@@ -46,10 +48,36 @@ function dateKey(date: Date): string {
 }
 
 export default function Stats() {
-  const progress = getProgress();
-  const checkins = getCheckins();
-  const streak = getStreakDays(checkins);
+  const [progress, setProgressState] = useState<Progress | null>(null);
+  const [checkins, setCheckinsState] = useState<Checkin[] | null>(null);
   const [hoverInfo, setHoverInfo] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [p, cs] = await Promise.all([getProgress(), getCheckins()]);
+      if (cancelled) return;
+      setProgressState(p);
+      setCheckinsState(cs);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!progress || !checkins) {
+    return (
+      <div className="page-stats">
+        <div className="card">
+          <h2>统计</h2>
+          <p>加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const streak = getStreakDays(checkins);
 
   // 按日期汇总训练量与动作明细
   const byDateVolume: Record<string, number> = {};
@@ -199,6 +227,63 @@ export default function Stats() {
             </div>
           );
         })}
+      </div>
+
+      <div className="card">
+        <h2>数据备份</h2>
+        <p>可以导出 / 导入当前设备上的全部训练数据（进度、打卡、成就、设置）。</p>
+        <div className="backup-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={async () => {
+              try {
+                const data = await exportAllData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                  type: 'application/json',
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prizonor-fitness-backup-${new Date()
+                  .toISOString()
+                  .slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('数据已导出为 JSON 文件。', 'success');
+              } catch (e) {
+                showToast('导出数据失败', 'error');
+              }
+            }}
+          >
+            导出数据（JSON）
+          </button>
+          <label className="btn-secondary">
+            导入数据
+            <input
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const text = await file.text();
+                  const json = JSON.parse(text);
+                  await importAllData(json);
+                  showToast('数据导入成功，即将刷新页面。', 'success');
+                  window.location.reload();
+                } catch (err) {
+                  showToast('导入数据失败，请确认文件格式是否正确。', 'error');
+                } finally {
+                  e.target.value = '';
+                }
+              }}
+            />
+          </label>
+        </div>
       </div>
     </div>
   );

@@ -1,14 +1,42 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getArt } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
+import type { Progress } from '@/types/progress';
 import { getProgress } from '@/storage/storage';
 
 export default function ArtDetail() {
   const { artId } = useParams<{ artId: string }>();
+  const [progress, setProgressState] = useState<Progress | null>(null);
+
+  useEffect(() => {
+    if (!artId) return;
+    let cancelled = false;
+    (async () => {
+      const p = await getProgress();
+      if (cancelled) return;
+      setProgressState(p);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [artId]);
+
   if (!artId) return <div>无效艺</div>;
 
   const art = getArt(artId as ArtId);
-  const progress = getProgress();
+
+  if (!progress) {
+    return (
+      <div className="page-art-detail">
+        <div className="card">
+          <h1>{art.name}</h1>
+          <p className="sub">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
   const artProgress = progress.arts[art.id];
 
   return (

@@ -16,12 +16,7 @@ export default function Checkin() {
 
   const [date, setDate] = useState(today());
   const [weightKg, setWeightKg] = useState<string>('');
-  const [entries, setEntries] = useState<CheckinEntry[]>(() => {
-    if (!presetArt) return [];
-    const progress = getProgress();
-    const level = progress.arts[presetArt]?.currentLevel ?? 1;
-    return [{ artId: presetArt, level, sets: 3, reps: 10, passed: false }];
-  });
+  const [entries, setEntries] = useState<CheckinEntry[]>([]);
 
   const addEntry = () => {
     setEntries((e) => [
@@ -54,6 +49,21 @@ export default function Checkin() {
       return next.slice(0, entries.length);
     });
   }, [entries.length]);
+
+  // 根据 presetArt 初始化一条记录（需要异步读取进度）
+  useEffect(() => {
+    if (!presetArt) return;
+    let cancelled = false;
+    (async () => {
+      const progress = await getProgress();
+      if (cancelled) return;
+      const level = progress.arts[presetArt]?.currentLevel ?? 1;
+      setEntries([{ artId: presetArt, level, sets: 3, reps: 10, passed: false }]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [presetArt]);
 
   // 有计时在跑时，每秒刷新一次，用于实时展示
   useEffect(() => {
@@ -139,7 +149,7 @@ export default function Checkin() {
     return '00:00';
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (entries.length === 0) return;
     const weight =
       weightKg.trim() === '' ? undefined : Math.max(0, Number.parseFloat(weightKg));
@@ -155,7 +165,7 @@ export default function Checkin() {
     }, 0);
     const durationSeconds = totalSeconds > 0 ? totalSeconds : undefined;
 
-    submitCheckinAndUpdateProgress({
+    await submitCheckinAndUpdateProgress({
       date,
       entries,
       weightKg: Number.isFinite(weight || 0) ? weight : undefined,
@@ -166,7 +176,7 @@ export default function Checkin() {
           : undefined,
     });
     if (Number.isFinite(weight || 0) && typeof weight === 'number') {
-      setSettings({ currentWeightKg: weight });
+      await setSettings({ currentWeightKg: weight });
     }
     setEntries([]);
     setDate(today());

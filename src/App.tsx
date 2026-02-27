@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import Home from '@/pages/Home';
 import ArtDetail from '@/pages/ArtDetail';
@@ -28,6 +29,21 @@ function Nav() {
 }
 
 export default function App() {
+  useEffect(() => {
+    async function ensurePersistentStorage() {
+      if (!('storage' in navigator) || !('persist' in navigator.storage)) return;
+      try {
+        const already = await navigator.storage.persisted();
+        if (!already) {
+          await navigator.storage.persist();
+        }
+      } catch {
+        // ignore persistent storage failure
+      }
+    }
+    void ensurePersistentStorage();
+  }, []);
+
   return (
     <ToastProvider>
       <div className="app">

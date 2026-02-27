@@ -26,7 +26,7 @@ export function masterCount(progress: Progress): number {
 }
 
 /** 提交打卡并更新进度：若 passed 且与当前式一致，记录达标并可选升级 */
-export function submitCheckinAndUpdateProgress(
+export async function submitCheckinAndUpdateProgress(
   checkin: {
     date: string;
     entries: CheckinEntry[];
@@ -36,8 +36,8 @@ export function submitCheckinAndUpdateProgress(
     /** 兼容早期数据：按分钟存储的总耗时 */
     durationMinutes?: number;
   }
-): Progress {
-  const progress = getProgress();
+): Promise<Progress> {
+  const progress = await getProgress();
 
   for (const entry of checkin.entries) {
     const art = progress.arts[entry.artId];
@@ -46,7 +46,7 @@ export function submitCheckinAndUpdateProgress(
       if (!art.completedAt[entry.level]) {
         art.completedAt[entry.level] = checkin.date;
         if (entry.level === 10) {
-          unlockAchievement(`art_master_${entry.artId}`);
+          await unlockAchievement(`art_master_${entry.artId}`);
         }
       }
       if (entry.level === art.currentLevel && art.currentLevel < 10) {
@@ -56,8 +56,8 @@ export function submitCheckinAndUpdateProgress(
   }
 
   progress.updatedAt = new Date().toISOString();
-  setProgress(progress);
-  addCheckin({
+  await setProgress(progress);
+  await addCheckin({
     ...checkin,
     createdAt: new Date().toISOString(),
   });

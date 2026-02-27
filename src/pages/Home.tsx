@@ -1,12 +1,40 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
+import type { Progress, Checkin } from '@/types/progress';
 import { getProgress, getCheckins } from '@/storage/storage';
 import { getCompletedLevel } from '@/logic/progressLogic';
 
 export default function Home() {
-  const progress = getProgress();
-  const checkins = getCheckins();
+  const [progress, setProgressState] = useState<Progress | null>(null);
+  const [checkins, setCheckinsState] = useState<Checkin[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [p, cs] = await Promise.all([getProgress(), getCheckins()]);
+      if (cancelled) return;
+      setProgressState(p);
+      setCheckinsState(cs);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!progress || !checkins) {
+    return (
+      <div className="page-home">
+        <section className="card today-summary">
+          <div className="today-header">
+            <h2>今日打卡</h2>
+            <span className="today-status level-0">加载中...</span>
+          </div>
+        </section>
+      </div>
+    );
+  }
   const today = new Date().toISOString().slice(0, 10);
   const todayCheckin = checkins.find((c) => c.date === today);
   const times = todayCheckin?.entries.length ?? 0;

@@ -1,38 +1,60 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { getCheckins, getSettings, setSettings } from '@/storage/storage';
+import { getCheckins, getSettings, setSettings as saveSettings } from '@/storage/storage';
 import { useToast } from '@/components/Toast';
 import posterBg from '@/assets/share-poster.png';
+import type { Checkin } from '@/types/progress';
+import type { AppSettings } from '@/storage/storage';
 
 export default function Share() {
   const cardRef = useRef<HTMLDivElement>(null);
-  const checkins = getCheckins();
-  const settings = getSettings();
+  const [checkins, setCheckins] = useState<Checkin[]>([]);
+  const [settings, setSettingsState] = useState<AppSettings>({});
+  const [loaded, setLoaded] = useState(false);
   const { showToast } = useToast();
 
   const settingsCurrentWeight =
     typeof settings.currentWeightKg === 'number' ? settings.currentWeightKg : undefined;
 
-  const [startDateInput, setStartDateInput] = useState<string>(() => {
-    if (settings.shareStartDate) return settings.shareStartDate;
-    if (checkins.length === 0) return '';
-    // 默认从最早打卡日期开始
-    const minDate = checkins.reduce(
-      (min, c) => (c.date < min ? c.date : min),
-      checkins[0].date
-    );
-    return minDate;
-  });
-  const [initialWeightInput, setInitialWeightInput] = useState<string>(() => {
-    if (typeof settings.shareInitialWeightKg === 'number') {
-      return String(settings.shareInitialWeightKg);
-    }
-    return '';
-  });
-  const [heightInput, setHeightInput] = useState<string>(() => {
-    const rawHeight = (settings as any).heightMeter as number | undefined;
-    return typeof rawHeight === 'number' ? String(rawHeight) : '';
-  });
+  const [startDateInput, setStartDateInput] = useState<string>('');
+  const [initialWeightInput, setInitialWeightInput] = useState<string>('');
+  const [heightInput, setHeightInput] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [cs, s] = await Promise.all([getCheckins(), getSettings()]);
+      if (cancelled) return;
+      setCheckins(cs);
+      setSettingsState(s);
+
+      if (s.shareStartDate) {
+        setStartDateInput(s.shareStartDate);
+      } else if (cs.length > 0) {
+        const minDate = cs.reduce(
+          (min, c) => (c.date < min ? c.date : min),
+          cs[0].date
+        );
+        setStartDateInput(minDate);
+      } else {
+        setStartDateInput('');
+      }
+
+      if (typeof s.shareInitialWeightKg === 'number') {
+        setInitialWeightInput(String(s.shareInitialWeightKg));
+      }
+
+      const rawHeight = s.heightMeter as number | undefined;
+      if (typeof rawHeight === 'number') {
+        setHeightInput(String(rawHeight));
+      }
+
+      setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -80,6 +102,18 @@ export default function Share() {
     weightDelta,
     bmi,
   } = useMemo(() => {
+    if (!loaded) {
+      return {
+        startDate: '',
+        currentDate: todayStr,
+        days: 0,
+        totalSeconds: 0,
+        lastWeight: undefined,
+        weightDelta: undefined,
+        bmi: undefined,
+      };
+    }
+
     if (checkins.length === 0) {
       const initWeight =
         initialWeightInput.trim() === ''
@@ -202,7 +236,7 @@ export default function Share() {
             onChange={(e) => {
               const v = e.target.value;
               setStartDateInput(v);
-              setSettings({ shareStartDate: v || undefined });
+              saveSettings({ shareStartDate: v || undefined });
             }}
             className="input"
           />
@@ -219,7 +253,7 @@ export default function Share() {
               setInitialWeightInput(v);
               const num =
                 v.trim() === '' ? undefined : Number.parseFloat(v.trim()) || undefined;
-              setSettings({ shareInitialWeightKg: num });
+              saveSettings({ shareInitialWeightKg: num });
             }}
             className="input"
             placeholder="用于计算体重变化"
@@ -237,7 +271,7 @@ export default function Share() {
               setHeightInput(v);
               const num =
                 v.trim() === '' ? undefined : Number.parseFloat(v.trim()) || undefined;
-              setSettings({ heightMeter: num });
+              saveSettings({ heightMeter: num });
             }}
             className="input"
             placeholder="例如 1.75"
