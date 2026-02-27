@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
 import type { CheckinEntry } from '@/types/progress';
-import { getProgress } from '@/storage/storage';
+import { getProgress, setSettings } from '@/storage/storage';
 import { submitCheckinAndUpdateProgress } from '@/logic/progressLogic';
 import { useToast } from '@/components/Toast';
 
@@ -15,6 +15,7 @@ export default function Checkin() {
   const { showToast } = useToast();
 
   const [date, setDate] = useState(today());
+  const [weightKg, setWeightKg] = useState<string>('');
   const [entries, setEntries] = useState<CheckinEntry[]>(() => {
     if (!presetArt) return [];
     const progress = getProgress();
@@ -37,11 +38,140 @@ export default function Checkin() {
     setEntries((e) => e.filter((_, i) => i !== idx));
   };
 
+  // 每条记录对应一个计时器状态
+  const [timers, setTimers] = useState<{ running: boolean; startAt: number | null }[]>(
+    []
+  );
+  const [now, setNow] = useState(() => Date.now());
+
+  // 保持 timers 长度与 entries 对齐
+  useEffect(() => {
+    setTimers((prev) => {
+      const next = [...prev];
+      while (next.length < entries.length) {
+        next.push({ running: false, startAt: null });
+      }
+      return next.slice(0, entries.length);
+    });
+  }, [entries.length]);
+
+  // 有计时在跑时，每秒刷新一次，用于实时展示
+  useEffect(() => {
+    const hasRunning = timers.some((t) => t.running && t.startAt != null);
+    if (!hasRunning) return;
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [timers]);
+
+  const toggleTimer = (idx: number) => {
+    setTimers((prev) =>
+      prev.map((t, i) => {
+        if (i !== idx) return t;
+        if (!t.running) {
+          // 重新开始计时时先清掉之前的时长（按秒存储）
+          setEntries((es) =>
+            es.map((e, j) =>
+              j === idx ? { ...e, durationSeconds: undefined, durationMinutes: undefined } : e
+            )
+          );
+          return { running: true, startAt: Date.now() };
+        }
+        const totalMs = t.startAt ? Date.now() - t.startAt : 0;
+        const seconds = Math.max(0, Math.floor(totalMs / 1000));
+        // 停止计时时写回到对应记录（精确到秒）
+        setEntries((es) =>
+          es.map((e, j) =>
+            j === idx
+              ? {
+                  ...e,
+                  durationSeconds: seconds > 0 ? seconds : undefined,
+                  durationMinutes: seconds > 0 ? seconds / 60 : undefined,
+                }
+              : e
+          )
+        );
+        return { running: false, startAt: null };
+      })
+    );
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const safe = Math.max(0, Math.floor(seconds));
+    const m = Math.floor(safe / 60);
+    const s = safe % 60;
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+    return `${mm}:${ss}`;
+  };
+
+  const getTimerLabel = (idx: number): string => {
+    const t = timers[idx];
+    const entry = entries[idx];
+    if (t?.running) return '结束';
+    if (entry?.durationSeconds && entry.durationSeconds > 0) return '已计时';
+    return '开始';
+  };
+
+  const getTimerDisplay = (idx: number): string => {
+    const t = timers[idx];
+    const entry = entries[idx];
+    if (!t) {
+      const legacySec =
+        entry && typeof entry.durationMinutes === 'number'
+          ? Math.max(0, entry.durationMinutes) * 60
+          : 0;
+      const baseSec =
+        entry && typeof entry.durationSeconds === 'number'
+          ? Math.max(0, entry.durationSeconds)
+          : legacySec;
+      return baseSec > 0 ? formatDuration(baseSec) : '00:00';
+    }
+    if (t.running && t.startAt != null) {
+      const diffMs = now - t.startAt;
+      const seconds = Math.max(0, Math.floor(diffMs / 1000));
+      return formatDuration(seconds);
+    }
+    if (entry?.durationSeconds && entry.durationSeconds > 0) {
+      return formatDuration(entry.durationSeconds);
+    }
+    return '00:00';
+  };
+
   const submit = () => {
     if (entries.length === 0) return;
-    submitCheckinAndUpdateProgress({ date, entries });
+    const weight =
+      weightKg.trim() === '' ? undefined : Math.max(0, Number.parseFloat(weightKg));
+    const totalSeconds = entries.reduce((sum, e) => {
+      if (typeof e.durationSeconds === 'number' && Number.isFinite(e.durationSeconds)) {
+        return sum + Math.max(0, Math.floor(e.durationSeconds));
+      }
+      // 兼容旧数据：如果只有分钟，换算成秒
+      if (typeof e.durationMinutes === 'number' && Number.isFinite(e.durationMinutes)) {
+        return sum + Math.max(0, Math.floor(e.durationMinutes * 60));
+      }
+      return sum;
+    }, 0);
+    const durationSeconds = totalSeconds > 0 ? totalSeconds : undefined;
+
+    submitCheckinAndUpdateProgress({
+      date,
+      entries,
+      weightKg: Number.isFinite(weight || 0) ? weight : undefined,
+      durationSeconds: Number.isFinite(durationSeconds || 0) ? durationSeconds : undefined,
+      durationMinutes:
+        Number.isFinite(durationSeconds || 0) && durationSeconds
+          ? durationSeconds / 60
+          : undefined,
+    });
+    if (Number.isFinite(weight || 0) && typeof weight === 'number') {
+      setSettings({ currentWeightKg: weight });
+    }
     setEntries([]);
     setDate(today());
+    setWeightKg('');
+    setTimers([]);
     showToast('打卡已保存', 'success');
   };
 
@@ -55,6 +185,18 @@ export default function Checkin() {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="input"
+          />
+        </label>
+        <label>
+          体重（kg，可选）
+          <input
+            type="number"
+            min={0}
+            step="0.1"
+            value={weightKg}
+            onChange={(e) => setWeightKg(e.target.value)}
+            className="input"
+            placeholder="例如 70.5"
           />
         </label>
       </div>
@@ -101,6 +243,14 @@ export default function Checkin() {
               placeholder="次/组"
               className="input small"
             />
+              <button
+                type="button"
+                onClick={() => toggleTimer(idx)}
+                className={`timer-btn ${timers[idx]?.running ? 'timer-btn-running' : 'timer-btn-idle'}`}
+              >
+                <span className="timer-label">{getTimerLabel(idx)}</span>
+                <span className="timer-time">{getTimerDisplay(idx)}</span>
+              </button>
             <label className="checkbox">
               <input
                 type="checkbox"

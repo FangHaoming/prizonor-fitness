@@ -93,7 +93,20 @@ export function unlockAchievement(id: Achievement['id']): void {
   localStorage.setItem(KEY_ACHIEVEMENTS, JSON.stringify(list));
 }
 
-export function getSettings(): { feedbackDismissed?: boolean; reminder?: boolean } {
+export interface AppSettings {
+  feedbackDismissed?: boolean;
+  reminder?: boolean;
+  /** 分享页统计的起始日期（YYYY-MM-DD，可选） */
+  shareStartDate?: string;
+  /** 用户设置的初始体重（kg，可选） */
+  shareInitialWeightKg?: number;
+  /** 用户当前体重（kg，可选，用于体重变化计算） */
+  currentWeightKg?: number;
+  /** 用户身高（米，可选，用于 BMI 计算） */
+  heightMeter?: number;
+}
+
+export function getSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(KEY_SETTINGS);
     if (!raw) return {};

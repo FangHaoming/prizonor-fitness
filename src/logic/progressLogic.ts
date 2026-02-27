@@ -27,7 +27,15 @@ export function masterCount(progress: Progress): number {
 
 /** 提交打卡并更新进度：若 passed 且与当前式一致，记录达标并可选升级 */
 export function submitCheckinAndUpdateProgress(
-  checkin: { date: string; entries: CheckinEntry[] }
+  checkin: {
+    date: string;
+    entries: CheckinEntry[];
+    weightKg?: number;
+    /** 本次训练总耗时（秒，可选） */
+    durationSeconds?: number;
+    /** 兼容早期数据：按分钟存储的总耗时 */
+    durationMinutes?: number;
+  }
 ): Progress {
   const progress = getProgress();
 

@@ -102,6 +102,52 @@
   margin-right: 0.5rem;
 }
 
+.timer-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-left: 0.25rem;
+  font-size: 0.7rem;
+  line-height: 1.1;
+}
+
+.timer-label {
+  font-size: 0.7rem;
+  margin-bottom: 2px;
+}
+
+.timer-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 0.75rem;
+}
+
+.timer-btn-idle {
+  border-color: rgba(125, 255, 196, 0.9);
+  background: rgba(125, 255, 196, 0.15);
+  color: #bdfce3;
+}
+
+.timer-btn-idle:hover {
+  background: rgba(125, 255, 196, 0.25);
+}
+
+.timer-btn-running {
+  border-color: rgba(248, 113, 113, 0.9);
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.timer-btn-running:hover {
+  background: rgba(248, 113, 113, 0.26);
+}
+
 .btn-ghost { background: none; border: none; color: var(--text-muted); padding: 0.25rem; }
 
 .input {
@@ -337,10 +383,84 @@
   color: var(--text-muted);
 }
 
-.share-card { max-width: 360px; margin: 0 auto 1rem; }
-.share-card .tagline { margin-top: 1rem; color: var(--text-muted); font-style: italic; }
-.share-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
-.share-list li { padding: 0.25rem 0; }
+.share-config label {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.share-card {
+  max-width: 420px;
+  margin: 0 auto 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.share-poster {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.share-poster-bg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.share-poster-overlay {
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  pointer-events: none;
+}
+
+.share-poster-values {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.share-poster-values span {
+  position: absolute;
+  text-align: right;
+}
+
+/* 这些百分比大致对齐右侧六个信息条的位置，如需微调可自行修改 */
+.val-start-date {
+  top: 45.5%;
+  right: 19%;
+}
+
+.val-current-date {
+  top: 45.5%;
+  right: 3%;
+}
+
+.val-weight-change {
+  top: 52.4%;
+  left: 80%;
+}
+
+.val-bmi {
+  top: 59.2%;
+  left: 80%;
+}
+
+.val-days {
+  top: 65.8%;
+  left: 80%;
+}
+
+.val-duration {
+  top: 72.5%;
+  left: 80%;
+}
+
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
 .toast-container {

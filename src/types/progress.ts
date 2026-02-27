@@ -23,12 +23,22 @@ export interface CheckinEntry {
   reps: number;
   /** 用户自评本次是否达标 */
   passed: boolean;
+  /** 本条记录耗时（秒，可选） */
+  durationSeconds?: number;
+  /** 兼容早期数据：按分钟存储的耗时 */
+  durationMinutes?: number;
 }
 
 /** 某日的打卡 */
 export interface Checkin {
   date: string; // YYYY-MM-DD
   entries: CheckinEntry[];
+  /** 本次打卡时记录的体重（kg，可选） */
+  weightKg?: number;
+  /** 本次训练总耗时（秒，可选） */
+  durationSeconds?: number;
+  /** 兼容早期数据：按分钟存储的总耗时 */
+  durationMinutes?: number;
   createdAt: string; // ISO
 }
 
