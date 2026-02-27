@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { getProgress } from '@/storage/storage';
 import { getCompletedLevel, masterCount } from '@/logic/progressLogic';
 import { SIX_ARTS } from '@/data/sixArts';
@@ -11,31 +12,34 @@ export default function Share() {
   const masters = masterCount(progress);
   const { showToast } = useToast();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cardRef.current) return;
-    // 简单方案：提示用户截图；后续可接 html2canvas 导出 PNG
-    const range = document.createRange();
-    range.selectNodeContents(cardRef.current);
-    showToast(
-      '请使用系统截图或浏览器截屏工具保存下方卡片区域。后续版本将支持一键导出图片。',
-      'info'
-    );
-  };
+    try {
+      const bg =
+        getComputedStyle(document.documentElement).getPropertyValue('--bg') ||
+        '#0f0f12';
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: '囚徒健身进度',
-          text: `六艺进度 · 最终技 ${masters}/6 已完成`,
-        });
-      } catch (e) {
-        if ((e as Error).name !== 'AbortError') {
-          showToast('分享失败，请稍后重试', 'error');
-        }
-      }
-    } else {
-      handleSave();
+      const options: any = {
+        backgroundColor: bg.trim(),
+        scale: window.devicePixelRatio || 2,
+      };
+
+      const canvas = await html2canvas(cardRef.current, options);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = '囚徒健身进度.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('已导出图片，正在下载。', 'success');
+    } catch (e) {
+      showToast(
+        '导出图片失败',
+        'error'
+      );
     }
   };
 
@@ -59,9 +63,6 @@ export default function Share() {
       <div className="actions">
         <button type="button" onClick={handleSave} className="cta">
           保存为图片（截图）
-        </button>
-        <button type="button" onClick={handleShare} className="btn-secondary">
-          分享
         </button>
       </div>
     </div>
