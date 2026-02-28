@@ -59,6 +59,20 @@
   font-size: 1rem;
 }
 
+/* 打卡页：日期与体重之间留出间距（用 flex gap 保证生效） */
+.card-checkin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.last-weight-hint {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+  margin-bottom: 0.25rem;
+}
+
 .progress-bar {
   height: 6px;
   background: var(--border);

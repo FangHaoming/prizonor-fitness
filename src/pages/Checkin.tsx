@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
 import type { CheckinEntry } from '@/types/progress';
-import { getProgress, setSettings } from '@/storage/storage';
+import { getProgress, getSettings, setSettings } from '@/storage/storage';
 import { submitCheckinAndUpdateProgress } from '@/logic/progressLogic';
 import { useToast } from '@/components/Toast';
 import { Input, Select, DatePicker } from '@/components/ui';
@@ -17,6 +17,7 @@ export default function Checkin() {
 
   const [date, setDate] = useState(today());
   const [weightKg, setWeightKg] = useState<string>('');
+  const [lastWeightKg, setLastWeightKg] = useState<number | null>(null);
   const [entries, setEntries] = useState<CheckinEntry[]>([]);
 
   const addEntry = () => {
@@ -50,6 +51,19 @@ export default function Checkin() {
       return next.slice(0, entries.length);
     });
   }, [entries.length]);
+
+  // 加载上次打卡体重（用于展示与参考）
+  useEffect(() => {
+    let cancelled = false;
+    getSettings().then((s) => {
+      if (!cancelled && s.currentWeightKg != null && Number.isFinite(s.currentWeightKg)) {
+        setLastWeightKg(s.currentWeightKg);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 根据 presetArt 初始化一条记录（需要异步读取进度）
   useEffect(() => {
@@ -178,6 +192,7 @@ export default function Checkin() {
     });
     if (Number.isFinite(weight || 0) && typeof weight === 'number') {
       await setSettings({ currentWeightKg: weight });
+      setLastWeightKg(weight);
     }
     setEntries([]);
     setDate(today());
@@ -188,20 +203,23 @@ export default function Checkin() {
 
   return (
     <div className="page-checkin">
-      <div className="card">
+      <div className="card card-checkin-form">
         <label>
           日期
           <DatePicker value={date} onChange={setDate} />
         </label>
         <label>
           体重（kg，可选）
+          {lastWeightKg != null && (
+            <span className="last-weight-hint">上次打卡：{lastWeightKg} kg</span>
+          )}
           <Input
             type="number"
             min={0}
             step="0.1"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            placeholder="例如 70.5"
+            placeholder={lastWeightKg != null ? `例如 ${lastWeightKg}` : '例如 70.5'}
           />
         </label>
       </div>
