@@ -390,18 +390,21 @@
 }
 
 .share-card {
-  max-width: 420px;
+  width: 100%;
+  max-width: 564px;
   margin: 0 auto 1rem;
   padding: 0;
   border: none;
   background: none;
 }
 
+/* 海报设计稿 564×1024，用容器查询按实际渲染尺寸缩放文字与布局 */
 .share-poster {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+  container-type: inline-size;
+  container-name: poster;
 }
 
 .share-poster-bg {
@@ -422,7 +425,15 @@
   width: 100%;
   height: 100%;
   font-weight: 600;
-  font-size: 0.8rem;
+  /* 按海报宽度缩放：设计稿 564px 时约 12.8px，最小 8px、最大 14px */
+  font-size: clamp(0.5rem, 2.27cqw, 0.875rem);
+}
+
+@container poster (min-width: 1px) {
+  .share-poster-values {
+    /* 小屏时行高略收紧，避免重叠 */
+    line-height: 1.2;
+  }
 }
 
 .share-poster-values span {
@@ -430,34 +441,34 @@
   text-align: right;
 }
 
-/* 这些百分比大致对齐右侧六个信息条的位置，如需微调可自行修改 */
+/* 以下为设计稿 564×1024 下的比例，随容器尺寸自动缩放 */
 .val-start-date {
-  top: 45.5%;
-  right: 19%;
+  top: 46%;
+  right: 21%;
 }
 
 .val-current-date {
-  top: 45.5%;
-  right: 3%;
+  top: 46%;
+  right: 4%;
 }
 
 .val-weight-change {
-  top: 52.4%;
+  top: 53%;
   left: 80%;
 }
 
 .val-bmi {
-  top: 59.2%;
+  top: 59.7%;
   left: 80%;
 }
 
 .val-days {
-  top: 65.8%;
+  top: 66.3%;
   left: 80%;
 }
 
 .val-duration {
-  top: 72.5%;
+  top: 73%;
   left: 80%;
 }
 
