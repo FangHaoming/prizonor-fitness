@@ -126,9 +126,11 @@ export default function Share() {
         typeof initWeight === 'number' && typeof lastW === 'number'
           ? Number((lastW - initWeight).toFixed(1))
           : undefined;
+      // BMI：无打卡体重时用初始体重 + 身高计算
+      const weightForBmi = lastW ?? initWeight;
       const bmiVal =
-        typeof lastW === 'number' && typeof height === 'number' && height > 0
-          ? Number((lastW / (height * height)).toFixed(1))
+        typeof weightForBmi === 'number' && typeof height === 'number' && height > 0
+          ? Number((weightForBmi / (height * height)).toFixed(1))
           : undefined;
 
       return {
@@ -176,9 +178,11 @@ export default function Share() {
 
     const height =
       heightInput.trim() === '' ? undefined : Number.parseFloat(heightInput.trim());
+    // BMI：无打卡体重时用初始体重 + 身高计算
+    const weightForBmi = lastW ?? initWeight;
     const bmiVal =
-      typeof lastW === 'number' && typeof height === 'number' && height > 0
-        ? Number((lastW / (height * height)).toFixed(1))
+      typeof weightForBmi === 'number' && typeof height === 'number' && height > 0
+        ? Number((weightForBmi / (height * height)).toFixed(1))
         : undefined;
 
     return {
