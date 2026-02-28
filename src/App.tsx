@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import Home from '@/pages/Home';
 import ArtDetail from '@/pages/ArtDetail';
 import Checkin from '@/pages/Checkin';
-import Stats from '@/pages/Stats';
 import Share from '@/pages/Share';
 import { ToastProvider } from '@/components/Toast';
+
+const Stats = lazy(() => import('@/pages/Stats'));
 
 function Nav() {
   const link = (to: string, label: string) => (
@@ -51,13 +52,15 @@ export default function App() {
           <h1 className="logo">囚徒健身 · 进度</h1>
         </header>
         <main className="main">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/art/:artId" element={<ArtDetail />} />
-            <Route path="/checkin" element={<Checkin />} />
-            <Route path="/stats" element={<Stats />} />
-            <Route path="/share" element={<Share />} />
-          </Routes>
+          <Suspense fallback={<div className="card"><p>加载中...</p></div>}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/art/:artId" element={<ArtDetail />} />
+              <Route path="/checkin" element={<Checkin />} />
+              <Route path="/stats" element={<Stats />} />
+              <Route path="/share" element={<Share />} />
+            </Routes>
+          </Suspense>
         </main>
         <Nav />
       </div>

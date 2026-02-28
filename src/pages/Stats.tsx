@@ -1,8 +1,27 @@
 import { useEffect, useState } from 'react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  LineController,
+  Tooltip,
+  Filler,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import type { TooltipItem } from 'chart.js';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
 import type { Progress, Checkin } from '@/types/progress';
-import { getProgress, getCheckins, exportAllData, importAllData } from '@/storage/storage';
+import {
+  getProgress,
+  getCheckins,
+  getSettings,
+  setSettings,
+  exportAllData,
+  importAllData,
+} from '@/storage/storage';
 import { useToast } from '@/components/Toast';
 import {
   getCompletedLevel,
@@ -10,6 +29,17 @@ import {
   getStageDurationDays,
   getStreakDays,
 } from '@/logic/progressLogic';
+
+// 仅注册折线图所需组件，减小打包体积
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  LineController,
+  Tooltip,
+  Filler
+);
 
 const stageLabel: Record<string, string> = {
   beginner: '初级',
@@ -47,19 +77,239 @@ function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+const CHART_HEIGHT = 220;
+
+// 按阶段着色：1-3 初级(绿)，4-6 中级(蓝)，7-9 高级(橙)，10 终极技(金)
+const STAGE_COLORS_BY_LEVEL: Record<number, string> = {
+  1: '#15803d', 2: '#22c55e', 3: '#4ade80',   // 初级
+  4: '#1d4ed8', 5: '#3b82f6', 6: '#60a5fa',   // 中级
+  7: '#c2410c', 8: '#ea580c', 9: '#fb923c',   // 高级（橙）
+  10: '#facc15',                               // 终极技（亮金）
+};
+function getStageColorForLevel(level: number): string {
+  return STAGE_COLORS_BY_LEVEL[level] ?? '#888';
+}
+
+// 单动作：日期-锻炼量折线图（Chart.js），悬停显示当日详情
+function ActionLineChart({
+  data,
+}: {
+  data: { date: string; volume: number; details: string[] }[];
+}) {
+  const chartData = {
+    labels: data.map((d) => d.date),
+    datasets: [
+      {
+        label: '锻炼量',
+        data: data.map((d) => d.volume),
+        borderColor: '#4ade80',
+        backgroundColor: 'rgba(74, 222, 128, 0.15)',
+        fill: true,
+        tension: 0.2,
+      },
+    ],
+  };
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      tooltip: {
+        callbacks: {
+          title: (items: TooltipItem<'line'>[]) => {
+            const idx = items[0]?.dataIndex;
+            return idx != null ? data[idx].date : '';
+          },
+          label: (context: TooltipItem<'line'>) => {
+            const idx = context.dataIndex;
+            const vol = idx != null ? data[idx].volume : 0;
+            return `锻炼量: ${vol}`;
+          },
+          afterLabel: () => [], // 单动作只显示总锻炼量，不列明细
+          // 左侧色块实心填充，与折线颜色一致
+          labelColor: () => ({
+            backgroundColor: '#4ade80',
+            borderColor: '#4ade80',
+          }),
+        },
+      },
+      legend: { display: false },
+    },
+    scales: {
+      x: { ticks: { maxRotation: 45, maxTicksLimit: 8 } },
+      y: { beginAtZero: true },
+    },
+  };
+  return (
+    <div className="line-chart-wrap" style={{ height: CHART_HEIGHT }}>
+      <Line data={chartData} options={options} />
+    </div>
+  );
+}
+
+// 六艺 1→10 式：多线折线图（Chart.js），每条线一个式，悬停显示当日各式详情
+function ArtProgressionLineChart({
+  data,
+  artId,
+}: {
+  data: { date: string; byLevel: Record<number, { volume: number; details: string[] }> }[];
+  artId: ArtId;
+}) {
+  const art = SIX_ARTS.find((a) => a.id === artId);
+  const levelsWithData = new Set<number>();
+  data.forEach((d) => Object.keys(d.byLevel).forEach((k) => levelsWithData.add(Number(k))));
+  const levels = Array.from(levelsWithData).sort((a, b) => a - b);
+
+  const chartData = {
+    labels: data.map((d) => d.date),
+    datasets: levels.map((level) => {
+      const step = art?.steps.find((s) => s.level === level);
+      const color = getStageColorForLevel(level);
+      return {
+        label: step?.name ?? `第${level}式`,
+        data: data.map((d) => d.byLevel[level]?.volume ?? 0),
+        borderColor: color,
+        backgroundColor: color + '20',
+        fill: false,
+        tension: 0.2,
+      };
+    }),
+  };
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index' as const, intersect: false },
+    plugins: {
+      tooltip: {
+        // 锻炼量为 0 的不展示
+        filter: (item: TooltipItem<'line'>) => (item.parsed.y ?? 0) !== 0,
+        // 按 dataset 顺序（第1式→第10式）排列，与折线、图例一致，色块才能和线条对上
+        itemSort: (a: { datasetIndex: number }, b: { datasetIndex: number }) =>
+          a.datasetIndex - b.datasetIndex,
+        callbacks: {
+          title: (items: TooltipItem<'line'>[]) => {
+            const idx = items[0]?.dataIndex;
+            return idx != null ? data[idx].date : '';
+          },
+          afterLabel: () => [], // 只展示动作+锻炼量，不列明细
+          // 左侧色块实心填充，与各条折线颜色一致
+          labelColor: (context: TooltipItem<'line'>) => {
+            const color = chartData.datasets[context.datasetIndex]?.borderColor ?? '#888';
+            return { backgroundColor: color, borderColor: color };
+          },
+        },
+      },
+      legend: {
+        position: 'bottom' as const,
+        labels: { boxWidth: 12, font: { size: 10 }, padding: 8 },
+      },
+    },
+    scales: {
+      x: { ticks: { maxRotation: 45, maxTicksLimit: 8 } },
+      y: { beginAtZero: true },
+    },
+  };
+  return (
+    <div className="line-chart-wrap" style={{ height: CHART_HEIGHT }}>
+      <Line data={chartData} options={options} />
+    </div>
+  );
+}
+
+// 从打卡记录中收集有数据的 (艺, 式)，按六艺顺序再按式 1-10 排序
+function getActionsWithData(checkins: Checkin[]): { artId: ArtId; level: number }[] {
+  const set = new Set<string>();
+  for (const c of checkins) {
+    for (const e of c.entries) {
+      set.add(`${e.artId}-${e.level}`);
+    }
+  }
+  const list: { artId: ArtId; level: number }[] = [];
+  for (const art of SIX_ARTS) {
+    for (let level = 1; level <= 10; level++) {
+      if (set.has(`${art.id}-${level}`)) list.push({ artId: art.id as ArtId, level });
+    }
+  }
+  return list;
+}
+
+// 有打卡数据的艺 ID 列表（按 SIX_ARTS 顺序）
+function getArtsWithData(checkins: Checkin[]): ArtId[] {
+  const set = new Set<ArtId>();
+  for (const c of checkins) {
+    for (const e of c.entries) set.add(e.artId);
+  }
+  return SIX_ARTS.map((a) => a.id as ArtId).filter((id) => set.has(id));
+}
+
+// 某 (艺, 式) 按日期的训练量
+function getVolumeByDateForAction(
+  checkins: Checkin[],
+  artId: ArtId,
+  level: number
+): { date: string; volume: number; details: string[] }[] {
+  const byDate: Record<string, { volume: number; details: string[] }> = {};
+  const art = SIX_ARTS.find((a) => a.id === artId);
+  const step = art?.steps.find((s) => s.level === level);
+  const stepName = step?.name ?? `第${level}式`;
+  const artName = art?.name ?? artId;
+  for (const c of checkins) {
+    for (const e of c.entries) {
+      if (e.artId !== artId || e.level !== level) continue;
+      const vol = (e.sets || 0) * (e.reps || 0);
+      const desc = e.reps && e.reps > 0 ? `${e.sets}×${e.reps}` : `${e.sets}组`;
+      if (!byDate[c.date]) byDate[c.date] = { volume: 0, details: [] };
+      byDate[c.date].volume += vol;
+      byDate[c.date].details.push(`${artName}·${stepName} ${desc}`);
+    }
+  }
+  return Object.entries(byDate)
+    .map(([date, { volume, details }]) => ({ date, volume, details }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// 某艺 1-10 式按日期、按式的训练量（仅包含有数据的式）
+function getVolumeByDateAndLevelForArt(
+  checkins: Checkin[],
+  artId: ArtId
+): { date: string; byLevel: Record<number, { volume: number; details: string[] }> }[] {
+  const byDate: Record<string, Record<number, { volume: number; details: string[] }>> = {};
+  const art = SIX_ARTS.find((a) => a.id === artId);
+  for (const c of checkins) {
+    for (const e of c.entries) {
+      if (e.artId !== artId) continue;
+      const step = art?.steps.find((s) => s.level === e.level);
+      const stepName = step?.name ?? `第${e.level}式`;
+      const artName = art?.name ?? artId;
+      const vol = (e.sets || 0) * (e.reps || 0);
+      const desc = e.reps && e.reps > 0 ? `${e.sets}×${e.reps}` : `${e.sets}组`;
+      if (!byDate[c.date]) byDate[c.date] = {};
+      if (!byDate[c.date][e.level]) byDate[c.date][e.level] = { volume: 0, details: [] };
+      byDate[c.date][e.level].volume += vol;
+      byDate[c.date][e.level].details.push(`${artName}·${stepName} ${desc}`);
+    }
+  }
+  return Object.entries(byDate)
+    .map(([date, byLevel]) => ({ date, byLevel }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function Stats() {
   const [progress, setProgressState] = useState<Progress | null>(null);
   const [checkins, setCheckinsState] = useState<Checkin[] | null>(null);
+  const [settings, setSettingsState] = useState<Awaited<ReturnType<typeof getSettings>> | null>(
+    null
+  );
   const [hoverInfo, setHoverInfo] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [p, cs] = await Promise.all([getProgress(), getCheckins()]);
+      const [p, cs, st] = await Promise.all([getProgress(), getCheckins(), getSettings()]);
       if (cancelled) return;
       setProgressState(p);
       setCheckinsState(cs);
+      setSettingsState(st);
     })();
     return () => {
       cancelled = true;
@@ -194,6 +444,128 @@ export default function Stats() {
           </div>
         </div>
       </div>
+
+      {(() => {
+        const actionsWithData = getActionsWithData(checkins);
+        const artsWithData = getArtsWithData(checkins);
+        const savedActionArtId = (settings?.statsActionArtId as ArtId | undefined) ?? undefined;
+        const savedActionLevel = settings?.statsActionLevel;
+        const savedProgressionArtId =
+          (settings?.statsArtProgressionArtId as ArtId | undefined) ?? undefined;
+        const selectedAction =
+          actionsWithData.find(
+            (a) => a.artId === savedActionArtId && a.level === savedActionLevel
+          ) ?? actionsWithData[0];
+        const selectedArtProgression =
+          artsWithData.find((id) => id === savedProgressionArtId) ?? artsWithData[0];
+        const actionChartData = selectedAction
+          ? getVolumeByDateForAction(checkins, selectedAction.artId, selectedAction.level)
+          : [];
+        const progressionChartData = selectedArtProgression
+          ? getVolumeByDateAndLevelForArt(checkins, selectedArtProgression)
+          : [];
+
+        return (
+          <>
+            {/* 单动作打卡折线图 */}
+            {actionsWithData.length > 0 && (
+              <div className="card stats-chart-card">
+                <h2>单动作打卡趋势</h2>
+                <p className="chart-desc">按六艺选择动作，横轴日期、纵轴锻炼量</p>
+                <div className="chart-select-row">
+                  <select
+                    className="chart-select"
+                    value={selectedAction?.artId ?? ''}
+                    onChange={(e) => {
+                      const artId = e.target.value as ArtId;
+                      const stepsInArt = actionsWithData.filter((a) => a.artId === artId);
+                      const first = stepsInArt[0];
+                      if (first) {
+                        setSettings({ statsActionArtId: artId, statsActionLevel: first.level });
+                        setSettingsState((s) => (s ? { ...s, statsActionArtId: artId, statsActionLevel: first.level } : s));
+                      }
+                    }}
+                  >
+                    {SIX_ARTS.filter((art) => actionsWithData.some((a) => a.artId === art.id)).map(
+                      (art) => (
+                        <option key={art.id} value={art.id}>
+                          {art.name}
+                        </option>
+                      )
+                    )}
+                  </select>
+                  <select
+                    className="chart-select"
+                    value={selectedAction ? `${selectedAction.artId}-${selectedAction.level}` : ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const [aid, lv] = v.split('-');
+                      const level = parseInt(lv, 10);
+                      if (aid && !isNaN(level)) {
+                        setSettings({ statsActionArtId: aid, statsActionLevel: level });
+                        setSettingsState((s) => (s ? { ...s, statsActionArtId: aid, statsActionLevel: level } : s));
+                      }
+                    }}
+                  >
+                    {actionsWithData
+                      .filter((a) => a.artId === selectedAction?.artId)
+                      .map((a) => {
+                        const art = SIX_ARTS.find((x) => x.id === a.artId);
+                        const step = art?.steps.find((s) => s.level === a.level);
+                        return (
+                          <option key={`${a.artId}-${a.level}`} value={`${a.artId}-${a.level}`}>
+                            {step?.name ?? `第${a.level}式`}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+                {actionChartData.length > 0 ? (
+                  <ActionLineChart data={actionChartData} />
+                ) : (
+                  <p className="chart-empty">暂无该动作的打卡数据</p>
+                )}
+              </div>
+            )}
+
+            {/* 六艺 1→10 式 打卡趋势 */}
+            {artsWithData.length > 0 && (
+              <div className="card stats-chart-card">
+                <h2>六艺 1→10 式打卡趋势</h2>
+                <p className="chart-desc">选择一艺，查看从第一式到终极技（第10式）的锻炼量随日期变化</p>
+                <div className="chart-select-row">
+                  <select
+                    className="chart-select"
+                    value={selectedArtProgression ?? ''}
+                    onChange={(e) => {
+                      const artId = e.target.value as ArtId;
+                      setSettings({ statsArtProgressionArtId: artId });
+                      setSettingsState((s) => (s ? { ...s, statsArtProgressionArtId: artId } : s));
+                    }}
+                  >
+                    {artsWithData.map((id) => {
+                      const art = SIX_ARTS.find((a) => a.id === id);
+                      return (
+                        <option key={id} value={id}>
+                          {art?.name ?? id}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                {progressionChartData.length > 0 ? (
+                  <ArtProgressionLineChart
+                    data={progressionChartData}
+                    artId={selectedArtProgression!}
+                  />
+                ) : (
+                  <p className="chart-empty">暂无该艺的打卡数据</p>
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <div className="card">
         <h2>最终技完成</h2>

@@ -101,6 +101,12 @@ export interface AppSettings {
   currentWeightKg?: number;
   /** 用户身高（米，可选，用于 BMI 计算） */
   heightMeter?: number;
+  /** 统计页「单动作打卡」选中的艺 ID */
+  statsActionArtId?: string;
+  /** 统计页「单动作打卡」选中的式（1-10） */
+  statsActionLevel?: number;
+  /** 统计页「六艺 1→10 式」选中的艺 ID */
+  statsArtProgressionArtId?: string;
 }
 
 async function migrateSettingsFromLocalStorage(): Promise<AppSettings> {
