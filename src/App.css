@@ -401,7 +401,6 @@
 /* 海报设计稿 564×1024，用容器查询按实际渲染尺寸缩放文字与布局 */
 .share-poster {
   position: relative;
-  border-radius: 16px;
   overflow: hidden;
   container-type: inline-size;
   container-name: poster;
