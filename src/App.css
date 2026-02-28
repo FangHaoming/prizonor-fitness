@@ -161,7 +161,8 @@
   color: var(--text);
 }
 
-.input.small { width: 4rem; display: inline-block; margin-left: 0.25rem; }
+.input.small,
+.input-small { width: 4rem; display: inline-block; margin-left: 0.25rem; }
 
 .checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; }
 
@@ -602,6 +603,132 @@
 .toast-error {
   background: linear-gradient(135deg, #b91c1c, #ef4444);
   color: #fee2e2;
+}
+
+/* ---------- 第三方组件：Radix Select ---------- */
+.radix-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  min-height: 2rem;
+  gap: 0.25rem;
+}
+.radix-select-trigger.chart-select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  min-width: 100px;
+  font-size: 0.9rem;
+}
+.radix-select-trigger[data-placeholder] { color: var(--text-muted); }
+.radix-select-icon {
+  opacity: 0.6;
+  display: inline-flex;
+  margin-left: 0.25rem;
+}
+.radix-select-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.25rem;
+  z-index: 50;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+}
+.radix-select-item {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.radix-select-item[data-highlighted] {
+  background: var(--accent);
+  color: var(--bg);
+}
+.radix-select-item[data-state="checked"] {
+  background: rgba(201, 162, 39, 0.2);
+  color: var(--accent);
+}
+
+/* ---------- 第三方组件：Radix Popover + DatePicker ---------- */
+.input-date-trigger {
+  text-align: left;
+  cursor: pointer;
+}
+.radix-datepicker-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  z-index: 50;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+}
+.radix-datepicker-content .rdp-root {
+  --rdp-accent-color: var(--accent);
+  --rdp-accent-background-color: rgba(201, 162, 39, 0.2);
+  --rdp-today-color: var(--accent);
+}
+.radix-datepicker-content .rdp-day_button {
+  color: var(--text);
+}
+.radix-datepicker-content .rdp-day_button:hover {
+  background: var(--border);
+}
+.radix-datepicker-content .rdp-day_button[data-selected] {
+  background: var(--accent);
+  color: var(--bg);
+}
+.radix-datepicker-content .rdp-weekday {
+  color: var(--text-muted);
+}
+.radix-datepicker-content .rdp-nav_button {
+  color: var(--text);
+}
+.radix-datepicker-content .rdp-nav_button:hover {
+  background: var(--border);
+}
+.radix-datepicker-content .rdp-caption_label {
+  color: var(--text);
+}
+
+.datepicker-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.datepicker-quick-btn {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  background: var(--border);
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+.datepicker-quick-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
+}
+.datepicker-quick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- react-hot-toast 覆盖（与原有风格一致） ---------- */
+.app-toast.toast-success {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+  color: #ecfdf3 !important;
+}
+.app-toast.toast-error {
+  background: linear-gradient(135deg, #b91c1c, #ef4444) !important;
+  color: #fee2e2 !important;
 }
 
 /* 移动端：让月份标签和格子按实际内容宽度展开，一起横向滚动 */

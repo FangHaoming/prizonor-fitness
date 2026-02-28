@@ -6,6 +6,7 @@ import type { CheckinEntry } from '@/types/progress';
 import { getProgress, setSettings } from '@/storage/storage';
 import { submitCheckinAndUpdateProgress } from '@/logic/progressLogic';
 import { useToast } from '@/components/Toast';
+import { Input, Select, DatePicker } from '@/components/ui';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -190,22 +191,16 @@ export default function Checkin() {
       <div className="card">
         <label>
           日期
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="input"
-          />
+          <DatePicker value={date} onChange={setDate} />
         </label>
         <label>
           体重（kg，可选）
-          <input
+          <Input
             type="number"
             min={0}
             step="0.1"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            className="input"
             placeholder="例如 70.5"
           />
         </label>
@@ -217,42 +212,35 @@ export default function Checkin() {
           const art = SIX_ARTS.find((a) => a.id === entry.artId) ?? SIX_ARTS[0];
           return (
             <div key={idx} className="entry-row">
-              <select
+              <Select
                 value={entry.artId}
-                onChange={(e) => updateEntry(idx, { artId: e.target.value as ArtId })}
-              >
-                {SIX_ARTS.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={entry.level}
-                onChange={(e) => updateEntry(idx, { level: +e.target.value })}
-              >
-                {art.steps.map((step) => (
-                  <option key={step.level} value={step.level}>
-                    {step.name}
-                  </option>
-                ))}
-              </select>
-            <input
-              type="number"
-              min={1}
-              value={entry.sets}
-              onChange={(e) => updateEntry(idx, { sets: +e.target.value })}
-              placeholder="组"
-              className="input small"
-            />
-            <input
-              type="number"
-              min={0}
-              value={entry.reps}
-              onChange={(e) => updateEntry(idx, { reps: +e.target.value })}
-              placeholder="次/组"
-              className="input small"
-            />
+                onValueChange={(v) => updateEntry(idx, { artId: v as ArtId })}
+                options={SIX_ARTS.map((a) => ({ value: a.id, label: a.name }))}
+              />
+              <Select
+                value={String(entry.level)}
+                onValueChange={(v) => updateEntry(idx, { level: +v })}
+                options={art.steps.map((step) => ({
+                  value: String(step.level),
+                  label: step.name,
+                }))}
+              />
+              <Input
+                type="number"
+                min={1}
+                value={entry.sets}
+                onChange={(e) => updateEntry(idx, { sets: +e.target.value })}
+                placeholder="组"
+                small
+              />
+              <Input
+                type="number"
+                min={0}
+                value={entry.reps}
+                onChange={(e) => updateEntry(idx, { reps: +e.target.value })}
+                placeholder="次/组"
+                small
+              />
               <button
                 type="button"
                 onClick={() => toggleTimer(idx)}

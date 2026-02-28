@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { getCheckins, getSettings, setSettings as saveSettings } from '@/storage/storage';
 import { useToast } from '@/components/Toast';
+import { Input, DatePicker } from '@/components/ui';
 import posterBg from '@/assets/share-poster.png';
 import type { Checkin } from '@/types/progress';
 import type { AppSettings } from '@/storage/storage';
@@ -233,21 +234,18 @@ export default function Share() {
         <h3>分享设置</h3>
         <label>
           开始日期（用于统计）
-          <input
-            type="date"
+          <DatePicker
             value={startDateInput}
             max={todayStr}
-            onChange={(e) => {
-              const v = e.target.value;
+            onChange={(v) => {
               setStartDateInput(v);
               saveSettings({ shareStartDate: v || undefined });
             }}
-            className="input"
           />
         </label>
         <label>
           初始体重（kg）
-          <input
+          <Input
             type="number"
             min={0}
             step="0.1"
@@ -259,13 +257,12 @@ export default function Share() {
                 v.trim() === '' ? undefined : Number.parseFloat(v.trim()) || undefined;
               saveSettings({ shareInitialWeightKg: num });
             }}
-            className="input"
             placeholder="用于计算体重变化"
           />
         </label>
         <label>
           身高（m，用于 BMI）
-          <input
+          <Input
             type="number"
             min={0}
             step="0.01"
@@ -277,7 +274,6 @@ export default function Share() {
                 v.trim() === '' ? undefined : Number.parseFloat(v.trim()) || undefined;
               saveSettings({ heightMeter: num });
             }}
-            className="input"
             placeholder="例如 1.75"
           />
         </label>

@@ -23,6 +23,7 @@ import {
   importAllData,
 } from '@/storage/storage';
 import { useToast } from '@/components/Toast';
+import { Select } from '@/components/ui';
 import {
   getCompletedLevel,
   isMasterCompleted,
@@ -40,6 +41,17 @@ ChartJS.register(
   Tooltip,
   Filler
 );
+
+// 自定义 tooltip 定位：只在非零数据点位置弹出（取非零点的平均位置）
+type TooltipPositioner = (items: TooltipItem<'line'>[]) => { x: number; y: number; xAlign: string; yAlign: string } | false;
+const positioners = (Tooltip as unknown as { positioners: Record<string, TooltipPositioner> }).positioners;
+positioners.nonZeroAverage = (items) => {
+  const nonZero = items.filter((i) => (i.parsed?.y ?? 0) !== 0);
+  if (nonZero.length === 0) return false;
+  const x = nonZero.reduce((s, i) => s + i.element.x, 0) / nonZero.length;
+  const y = nonZero.reduce((s, i) => s + i.element.y, 0) / nonZero.length;
+  return { x, y, xAlign: 'center', yAlign: 'bottom' };
+};
 
 const stageLabel: Record<string, string> = {
   beginner: '初级',
@@ -114,6 +126,7 @@ function ActionLineChart({
     maintainAspectRatio: false,
     plugins: {
       tooltip: {
+        position: 'nearest' as const, // 在最近的数据点位置弹出
         callbacks: {
           title: (items: TooltipItem<'line'>[]) => {
             const idx = items[0]?.dataIndex;
@@ -180,6 +193,8 @@ function ArtProgressionLineChart({
     interaction: { mode: 'index' as const, intersect: false },
     plugins: {
       tooltip: {
+        // 在有数据（非零）的位置弹出，不固定在底部
+        position: 'nonZeroAverage' as 'average',
         // 锻炼量为 0 的不展示
         filter: (item: TooltipItem<'line'>) => (item.parsed.y ?? 0) !== 0,
         // 按 dataset 顺序（第1式→第10式）排列，与折线、图例一致，色块才能和线条对上
@@ -473,11 +488,10 @@ export default function Stats() {
                 <h2>单动作打卡趋势</h2>
                 <p className="chart-desc">按六艺选择动作，横轴日期、纵轴锻炼量</p>
                 <div className="chart-select-row">
-                  <select
-                    className="chart-select"
+                  <Select
+                    variant="chart"
                     value={selectedAction?.artId ?? ''}
-                    onChange={(e) => {
-                      const artId = e.target.value as ArtId;
+                    onValueChange={(artId) => {
                       const stepsInArt = actionsWithData.filter((a) => a.artId === artId);
                       const first = stepsInArt[0];
                       if (first) {
@@ -485,20 +499,14 @@ export default function Stats() {
                         setSettingsState((s) => (s ? { ...s, statsActionArtId: artId, statsActionLevel: first.level } : s));
                       }
                     }}
-                  >
-                    {SIX_ARTS.filter((art) => actionsWithData.some((a) => a.artId === art.id)).map(
-                      (art) => (
-                        <option key={art.id} value={art.id}>
-                          {art.name}
-                        </option>
-                      )
+                    options={SIX_ARTS.filter((art) => actionsWithData.some((a) => a.artId === art.id)).map(
+                      (art) => ({ value: art.id, label: art.name })
                     )}
-                  </select>
-                  <select
-                    className="chart-select"
+                  />
+                  <Select
+                    variant="chart"
                     value={selectedAction ? `${selectedAction.artId}-${selectedAction.level}` : ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onValueChange={(v) => {
                       const [aid, lv] = v.split('-');
                       const level = parseInt(lv, 10);
                       if (aid && !isNaN(level)) {
@@ -506,19 +514,17 @@ export default function Stats() {
                         setSettingsState((s) => (s ? { ...s, statsActionArtId: aid, statsActionLevel: level } : s));
                       }
                     }}
-                  >
-                    {actionsWithData
+                    options={actionsWithData
                       .filter((a) => a.artId === selectedAction?.artId)
                       .map((a) => {
                         const art = SIX_ARTS.find((x) => x.id === a.artId);
                         const step = art?.steps.find((s) => s.level === a.level);
-                        return (
-                          <option key={`${a.artId}-${a.level}`} value={`${a.artId}-${a.level}`}>
-                            {step?.name ?? `第${a.level}式`}
-                          </option>
-                        );
+                        return {
+                          value: `${a.artId}-${a.level}`,
+                          label: step?.name ?? `第${a.level}式`,
+                        };
                       })}
-                  </select>
+                  />
                 </div>
                 {actionChartData.length > 0 ? (
                   <ActionLineChart data={actionChartData} />
@@ -534,24 +540,18 @@ export default function Stats() {
                 <h2>六艺 1→10 式打卡趋势</h2>
                 <p className="chart-desc">选择一艺，查看从第一式到终极技（第10式）的锻炼量随日期变化</p>
                 <div className="chart-select-row">
-                  <select
-                    className="chart-select"
+                  <Select
+                    variant="chart"
                     value={selectedArtProgression ?? ''}
-                    onChange={(e) => {
-                      const artId = e.target.value as ArtId;
+                    onValueChange={(artId) => {
                       setSettings({ statsArtProgressionArtId: artId });
                       setSettingsState((s) => (s ? { ...s, statsArtProgressionArtId: artId } : s));
                     }}
-                  >
-                    {artsWithData.map((id) => {
+                    options={artsWithData.map((id) => {
                       const art = SIX_ARTS.find((a) => a.id === id);
-                      return (
-                        <option key={id} value={id}>
-                          {art?.name ?? id}
-                        </option>
-                      );
+                      return { value: id, label: art?.name ?? id };
                     })}
-                  </select>
+                  />
                 </div>
                 {progressionChartData.length > 0 ? (
                   <ArtProgressionLineChart
