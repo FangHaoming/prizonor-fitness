@@ -14,7 +14,14 @@ interface SelectProps {
   className?: string;
   /** 与 .chart-select 等现有样式兼容 */
   variant?: 'default' | 'chart';
+  /** 是否支持清空选择（会多出一项「清空」选项） */
+  clearable?: boolean;
+  /** clearable 时清空项的文案，默认「清空」 */
+  clearLabel?: string;
 }
+
+/** Radix Select 不允许 value=""，用占位值表示清空，onChange 时转为 '' */
+const CLEAR_PLACEHOLDER_VALUE = '__clear__';
 
 export function Select({
   value,
@@ -23,10 +30,18 @@ export function Select({
   placeholder = '请选择',
   className = '',
   variant = 'default',
+  clearable = false,
+  clearLabel = '清空',
 }: SelectProps) {
   const triggerClass = variant === 'chart' ? 'radix-select-trigger chart-select' : 'radix-select-trigger';
+  const displayOptions: SelectOption[] = clearable
+    ? [{ value: CLEAR_PLACEHOLDER_VALUE, label: clearLabel }, ...options]
+    : options;
+  const rootValue = value === '' ? CLEAR_PLACEHOLDER_VALUE : value;
+  const handleChange = (v: string) => onValueChange(v === CLEAR_PLACEHOLDER_VALUE ? '' : v);
+
   return (
-    <SelectPrimitive.Root value={value || undefined} onValueChange={onValueChange}>
+    <SelectPrimitive.Root value={rootValue} onValueChange={handleChange}>
       <SelectPrimitive.Trigger className={`${triggerClass} ${className}`.trim()}>
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon className="radix-select-icon" />
@@ -34,9 +49,9 @@ export function Select({
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content className="radix-select-content" position="popper" sideOffset={4}>
           <SelectPrimitive.Viewport>
-            {options.map((opt) => (
+            {displayOptions.map((opt) => (
               <SelectPrimitive.Item
-                key={opt.value}
+                key={opt.value === CLEAR_PLACEHOLDER_VALUE ? '__clear__' : opt.value}
                 value={opt.value}
                 className="radix-select-item"
               >

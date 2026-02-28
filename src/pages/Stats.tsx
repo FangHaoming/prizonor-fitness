@@ -485,103 +485,109 @@ export default function Stats() {
         const savedActionLevel = settings?.statsActionLevel;
         const savedProgressionArtId =
           (settings?.statsArtProgressionArtId as ArtId | undefined) ?? undefined;
-        const selectedAction =
-          actionsWithData.find(
-            (a) => a.artId === savedActionArtId && a.level === savedActionLevel
-          ) ?? actionsWithData[0];
-        const selectedArtProgression =
+
+        const selectedArtId =
           artsWithData.find((id) => id === savedProgressionArtId) ?? artsWithData[0];
-        const actionChartData = selectedAction
-          ? getVolumeByDateForAction(checkins, selectedAction.artId, selectedAction.level)
-          : [];
-        const progressionChartData = selectedArtProgression
-          ? getVolumeByDateAndLevelForArt(checkins, selectedArtProgression)
-          : [];
+        const actionsInArt = actionsWithData.filter((a) => a.artId === selectedArtId);
+        const selectedActionKey =
+          selectedArtId && savedActionArtId === selectedArtId && savedActionLevel != null
+            ? `${savedActionArtId}-${savedActionLevel}`
+            : '';
+        const selectedAction = actionsInArt.find(
+          (a) => `${a.artId}-${a.level}` === selectedActionKey
+        );
+
+        const actionChartData =
+          selectedAction != null
+            ? getVolumeByDateForAction(checkins, selectedAction.artId, selectedAction.level)
+            : [];
+        const progressionChartData = getVolumeByDateAndLevelForArt(checkins, selectedArtId);
+
+        const showSingleAction = selectedActionKey !== '';
 
         return (
-          <>
-            {/* 单动作打卡折线图 */}
-            {actionsWithData.length > 0 && (
-              <div className="card stats-chart-card">
-                <h2>单动作打卡趋势</h2>
-                <p className="chart-desc">按六艺选择动作，横轴日期、纵轴锻炼量</p>
-                <div className="chart-select-row">
-                  <Select
-                    variant="chart"
-                    value={selectedAction?.artId ?? ''}
-                    onValueChange={(artId) => {
-                      const stepsInArt = actionsWithData.filter((a) => a.artId === artId);
-                      const first = stepsInArt[0];
-                      if (first) {
-                        setSettings({ statsActionArtId: artId, statsActionLevel: first.level });
-                        setSettingsState((s) => (s ? { ...s, statsActionArtId: artId, statsActionLevel: first.level } : s));
-                      }
-                    }}
-                    options={SIX_ARTS.filter((art) => actionsWithData.some((a) => a.artId === art.id)).map(
-                      (art) => ({ value: art.id, label: art.name })
-                    )}
-                  />
-                  <Select
-                    variant="chart"
-                    value={selectedAction ? `${selectedAction.artId}-${selectedAction.level}` : ''}
-                    onValueChange={(v) => {
-                      const [aid, lv] = v.split('-');
-                      const level = parseInt(lv, 10);
-                      if (aid && !isNaN(level)) {
-                        setSettings({ statsActionArtId: aid, statsActionLevel: level });
-                        setSettingsState((s) => (s ? { ...s, statsActionArtId: aid, statsActionLevel: level } : s));
-                      }
-                    }}
-                    options={actionsWithData
-                      .filter((a) => a.artId === selectedAction?.artId)
-                      .map((a) => {
-                        const art = SIX_ARTS.find((x) => x.id === a.artId);
-                        const step = art?.steps.find((s) => s.level === a.level);
-                        return {
-                          value: `${a.artId}-${a.level}`,
-                          label: step?.name ?? `第${a.level}式`,
-                        };
-                      })}
-                  />
-                </div>
-                {actionChartData.length > 0 ? (
+          (artsWithData.length > 0 && (
+            <div className="card stats-chart-card">
+              <h2>打卡趋势</h2>
+              <p className="chart-desc">
+                选择一艺，可选具体动作；不选动作时显示该艺 1→10 式趋势，选择动作时显示单动作趋势
+              </p>
+              <div className="chart-select-row">
+                <Select
+                  variant="chart"
+                  value={selectedArtId ?? ''}
+                  onValueChange={(artId) => {
+                    const actionBelongsToNewArt =
+                      savedActionArtId === artId && savedActionLevel != null;
+                    setSettings({
+                      statsArtProgressionArtId: artId,
+                      ...(actionBelongsToNewArt
+                        ? {}
+                        : { statsActionArtId: undefined, statsActionLevel: undefined }),
+                    });
+                    setSettingsState((s) =>
+                      s
+                        ? {
+                            ...s,
+                            statsArtProgressionArtId: artId,
+                            ...(actionBelongsToNewArt
+                              ? {}
+                              : { statsActionArtId: undefined, statsActionLevel: undefined }),
+                          }
+                        : s
+                    );
+                  }}
+                  options={artsWithData.map((id) => {
+                    const art = SIX_ARTS.find((a) => a.id === id);
+                    return { value: id, label: art?.name ?? id };
+                  })}
+                />
+                <Select
+                  variant="chart"
+                  clearable
+                  clearLabel="全部 1→10 式"
+                  value={selectedActionKey}
+                  onValueChange={(v) => {
+                    if (v === '') {
+                      setSettings({ statsActionArtId: undefined, statsActionLevel: undefined });
+                      setSettingsState((s) =>
+                        s ? { ...s, statsActionArtId: undefined, statsActionLevel: undefined } : s
+                      );
+                      return;
+                    }
+                    const [aid, lv] = v.split('-');
+                    const level = parseInt(lv, 10);
+                    if (aid && !isNaN(level)) {
+                      setSettings({ statsActionArtId: aid, statsActionLevel: level });
+                      setSettingsState((s) =>
+                        s ? { ...s, statsActionArtId: aid, statsActionLevel: level } : s
+                      );
+                    }
+                  }}
+                  options={actionsInArt.map((a) => {
+                    const art = SIX_ARTS.find((x) => x.id === a.artId);
+                    const step = art?.steps.find((s) => s.level === a.level);
+                    return {
+                      value: `${a.artId}-${a.level}`,
+                      label: step?.name ?? `第${a.level}式`,
+                    };
+                  })}
+                />
+              </div>
+              {showSingleAction ? (
+                actionChartData.length > 0 ? (
                   <ActionLineChart data={actionChartData} />
                 ) : (
                   <p className="chart-empty">暂无该动作的打卡数据</p>
-                )}
-              </div>
-            )}
-
-            {/* 六艺 1→10 式 打卡趋势 */}
-            {artsWithData.length > 0 && (
-              <div className="card stats-chart-card">
-                <h2>六艺 1→10 式打卡趋势</h2>
-                <p className="chart-desc">选择一艺，查看从第一式到终极技（第10式）的锻炼量随日期变化</p>
-                <div className="chart-select-row">
-                  <Select
-                    variant="chart"
-                    value={selectedArtProgression ?? ''}
-                    onValueChange={(artId) => {
-                      setSettings({ statsArtProgressionArtId: artId });
-                      setSettingsState((s) => (s ? { ...s, statsArtProgressionArtId: artId } : s));
-                    }}
-                    options={artsWithData.map((id) => {
-                      const art = SIX_ARTS.find((a) => a.id === id);
-                      return { value: id, label: art?.name ?? id };
-                    })}
-                  />
-                </div>
-                {progressionChartData.length > 0 ? (
-                  <ArtProgressionLineChart
-                    data={progressionChartData}
-                    artId={selectedArtProgression!}
-                  />
-                ) : (
-                  <p className="chart-empty">暂无该艺的打卡数据</p>
-                )}
-              </div>
-            )}
-          </>
+                )
+              ) : progressionChartData.length > 0 ? (
+                <ArtProgressionLineChart data={progressionChartData} artId={selectedArtId!} />
+              ) : (
+                <p className="chart-empty">暂无该艺的打卡数据</p>
+              )}
+            </div>
+          )) ??
+          null
         );
       })()}
 
