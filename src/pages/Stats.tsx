@@ -8,9 +8,10 @@ import {
   LineController,
   Tooltip,
   Filler,
+  Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import type { TooltipItem } from 'chart.js';
+import type { Chart, TooltipItem } from 'chart.js';
 import { SIX_ARTS } from '@/data/sixArts';
 import type { ArtId } from '@/data/sixArts';
 import type { Progress, Checkin } from '@/types/progress';
@@ -39,19 +40,9 @@ ChartJS.register(
   LineElement,
   LineController,
   Tooltip,
-  Filler
+  Filler,
+  Legend
 );
-
-// 自定义 tooltip 定位：只在非零数据点位置弹出（取非零点的平均位置）
-type TooltipPositioner = (items: TooltipItem<'line'>[]) => { x: number; y: number; xAlign: string; yAlign: string } | false;
-const positioners = (Tooltip as unknown as { positioners: Record<string, TooltipPositioner> }).positioners;
-positioners.nonZeroAverage = (items) => {
-  const nonZero = items.filter((i) => (i.parsed?.y ?? 0) !== 0);
-  if (nonZero.length === 0) return false;
-  const x = nonZero.reduce((s, i) => s + i.element.x, 0) / nonZero.length;
-  const y = nonZero.reduce((s, i) => s + i.element.y, 0) / nonZero.length;
-  return { x, y, xAlign: 'center', yAlign: 'bottom' };
-};
 
 const stageLabel: Record<string, string> = {
   beginner: '初级',
@@ -94,8 +85,8 @@ const CHART_HEIGHT = 220;
 // 按阶段着色：1-3 初级(绿)，4-6 中级(蓝)，7-9 高级(橙)，10 终极技(金)
 const STAGE_COLORS_BY_LEVEL: Record<number, string> = {
   1: '#15803d', 2: '#22c55e', 3: '#4ade80',   // 初级
-  4: '#1d4ed8', 5: '#3b82f6', 6: '#60a5fa',   // 中级
-  7: '#c2410c', 8: '#ea580c', 9: '#fb923c',   // 高级（橙）
+  4: '#60a5fa', 5: '#3b82f6', 6: '#1d4ed8',   // 中级
+  7: '#fb923c', 8: '#ea580c', 9: '#c2410c',   // 高级（橙）
   10: '#facc15',                               // 终极技（亮金）
 };
 function getStageColorForLevel(level: number): string {
@@ -193,8 +184,9 @@ function ArtProgressionLineChart({
     interaction: { mode: 'index' as const, intersect: false },
     plugins: {
       tooltip: {
-        // 在有数据（非零）的位置弹出，不固定在底部
-        position: 'nonZeroAverage' as 'average',
+        enabled: true,
+        // 使用内置定位，确保悬浮时能正常弹出
+        position: 'average' as const,
         // 锻炼量为 0 的不展示
         filter: (item: TooltipItem<'line'>) => (item.parsed.y ?? 0) !== 0,
         // 按 dataset 顺序（第1式→第10式）排列，与折线、图例一致，色块才能和线条对上
@@ -214,8 +206,34 @@ function ArtProgressionLineChart({
         },
       },
       legend: {
+        display: true,
         position: 'bottom' as const,
-        labels: { boxWidth: 12, font: { size: 10 }, padding: 8 },
+        labels: {
+          usePointStyle: false, // 使用矩形色块
+          boxWidth: 14,
+          boxHeight: 14,
+          padding: 10,
+          font: { size: 11, color: '#e8e8ec' }, // 与页面主文字色一致，深色背景下清晰可读
+          generateLabels(chart: Chart<'line'>) {
+            const legendTextColor = '#e8e8ec'; // 与页面主文字色一致
+            const datasets = chart.data.datasets;
+            return datasets.map((ds, i) => {
+              const color =
+                (typeof ds.borderColor === 'string' ? ds.borderColor : null) ??
+                (typeof ds.backgroundColor === 'string' ? ds.backgroundColor : null) ??
+                '#888';
+              return {
+                text: ds.label ?? '',
+                fillStyle: color, // 实心填充
+                strokeStyle: color,
+                lineWidth: 0,
+                fontColor: legendTextColor, // 自定义 generateLabels 时必须在每项上指定，否则会使用默认黑色
+                index: i,
+                datasetIndex: i,
+              };
+            });
+          },
+        },
       },
     },
     scales: {
