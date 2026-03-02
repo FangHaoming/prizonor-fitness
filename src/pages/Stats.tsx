@@ -415,10 +415,9 @@ export default function Stats() {
                 const showLabel =
                   (wi === 0 && firstDay.getDate() === 1) ||
                   (wi > 0 && prev && firstDay.getMonth() !== prev.getMonth());
-                if (!showLabel) return null;
                 return (
-                  <span key={wi} className="heatmap-month-label">
-                    {monthFormatter.format(firstDay)}
+                  <span key={wi} className="heatmap-month-cell">
+                    {showLabel ? monthFormatter.format(firstDay) : ''}
                   </span>
                 );
               })}

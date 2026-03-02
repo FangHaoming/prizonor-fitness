@@ -378,16 +378,20 @@
   flex: 0 0 auto;
 }
 
+/* 与 heatmap-grid 一致：每周一列 12px + 2px 间距，保证月份与下方格子对齐 */
 .heatmap-month-row {
   display: flex;
-  /* 相邻月份标签之间的水平间隔约等于 3 个日期格子（3*12px + 2*2px gap = 40px） */
-  gap: 42px;
+  gap: 2px;
 }
 
-.heatmap-month-label {
+.heatmap-month-cell {
+  flex: 0 0 12px;
+  width: 12px;
+  min-width: 12px;
   display: block;
-  width: auto;
   text-align: left;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .heatmap {
@@ -818,12 +822,9 @@
     width: max-content;
   }
 
-  /* 保证移动端月份之间也按 3 个格子左右的间距排布 */
-  .heatmap-month-row {
-    gap: 42px;
-  }
-
-  .heatmap-month-label {
-    width: auto;
+  /* 移动端保持与格子一致的 2px 间距，避免间隔过大 */
+  .heatmap-month-cell {
+    width: 12px;
+    min-width: 12px;
   }
 }
